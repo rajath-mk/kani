@@ -25,6 +25,7 @@ use crate::kani_middle::transform::contracts::{AnyModifiesPass, FunctionWithCont
 use crate::kani_middle::transform::kani_intrinsics::IntrinsicGeneratorPass;
 use crate::kani_middle::transform::stubs::{ExternFnStubPass, FnStubPass};
 use crate::kani_queries::QueryDb;
+use check_aliasing::GlobalAliasingPass;
 use dump_mir_pass::DumpMirPass;
 use rustc_middle::ty::TyCtxt;
 use stable_mir::mir::mono::{Instance, MonoItem};
@@ -35,6 +36,7 @@ use std::fmt::Debug;
 pub use internal_mir::RustcInternalMir;
 
 pub(crate) mod body;
+mod check_aliasing;
 mod check_uninit;
 mod check_values;
 mod contracts;
@@ -87,6 +89,7 @@ impl BodyTransformation {
                 mem_init_fn_cache: HashMap::new(),
             },
         );
+        // Check aliasing
         transformer.add_pass(
             queries,
             IntrinsicGeneratorPass {
@@ -196,6 +199,7 @@ impl GlobalPasses {
     pub fn new(queries: &QueryDb, tcx: TyCtxt) -> Self {
         let mut global_passes = GlobalPasses { global_passes: vec![] };
         global_passes.add_global_pass(queries, DelayedUbPass::new(CheckType::new_assert(tcx)));
+        global_passes.add_global_pass(queries, GlobalAliasingPass::new());
         global_passes.add_global_pass(queries, DumpMirPass::new(tcx));
         global_passes
     }

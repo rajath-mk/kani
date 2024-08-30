@@ -142,6 +142,12 @@ impl KaniSession {
             flags.push("--ub-check=uninit".into());
         }
 
+        if self.args.common_args.unstable_features.contains(UnstableFeature::Aliasing) {
+            // Automatically enable shadow memory, since the version of uninitialized memory checks
+            // without non-determinism depends on it.
+            flags.push("--ub-check=aliasing".into());
+        }
+
         flags.extend(self.args.common_args.unstable_features.as_arguments().map(str::to_string));
 
         // This argument will select the Kani flavour of the compiler. It will be removed before
