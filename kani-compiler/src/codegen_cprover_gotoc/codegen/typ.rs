@@ -4,6 +4,10 @@ use crate::codegen_cprover_gotoc::GotocCtx;
 use cbmc::goto_program::{DatatypeComponent, Expr, Location, Parameter, Symbol, SymbolTable, Type};
 use cbmc::utils::aggr_tag;
 use cbmc::{InternString, InternedString};
+use rustc_abi::{
+    BackendRepr::SimdVector, FieldIdx, FieldsShape, Float, Integer, LayoutData, Primitive, Size,
+    TagEncoding, TyAndLayout, VariantIdx, Variants,
+};
 use rustc_ast::ast::Mutability;
 use rustc_index::IndexVec;
 use rustc_middle::ty::GenericArgsRef;
@@ -17,10 +21,6 @@ use rustc_middle::ty::{
 use rustc_middle::ty::{List, TypeFoldable};
 use rustc_smir::rustc_internal;
 use rustc_span::def_id::DefId;
-use rustc_target::abi::{
-    BackendRepr::Vector, FieldIdx, FieldsShape, Float, Integer, LayoutData, Primitive, Size,
-    TagEncoding, TyAndLayout, VariantIdx, Variants,
-};
 use stable_mir::abi::{ArgAbi, FnAbi, PassMode};
 use stable_mir::mir::Body;
 use stable_mir::mir::mono::Instance as InstanceStable;
@@ -371,6 +371,7 @@ impl<'tcx> GotocCtx<'tcx> {
             // The virtual methods on the trait ref. Some auto traits have no methods.
             if let Some(principal) = binder.principal() {
                 let poly = principal.with_self_ty(self.tcx, t);
+                let poly = self.tcx.instantiate_bound_regions_with_erased(poly);
                 let poly = self.tcx.erase_regions(poly);
                 let mut flds = self
                     .tcx
@@ -717,7 +718,7 @@ impl<'tcx> GotocCtx<'tcx> {
                 let mut final_fields = Vec::with_capacity(flds.len());
                 let mut offset = initial_offset;
                 for idx in layout.fields.index_by_increasing_offset() {
-                    let fld_offset = offsets[idx.into()];
+                    let fld_offset = offsets[rustc_abi::FieldIdx::from(idx)];
                     let (fld_name, fld_ty) = &flds[idx];
                     if let Some(padding) =
                         self.codegen_struct_padding(offset, fld_offset, final_fields.len())
@@ -1472,7 +1473,7 @@ impl<'tcx> GotocCtx<'tcx> {
         debug! {"handling simd with layout {:?}", layout};
 
         let (element, size) = match layout {
-            Vector { element, count } => (element, count),
+            SimdVector { element, count } => (element, count),
             _ => unreachable!(),
         };
 
@@ -1556,9 +1557,9 @@ impl<'tcx> GotocCtx<'tcx> {
                     let components = fields_shape
                         .index_by_increasing_offset()
                         .map(|idx| {
-                            let idx = idx.into();
-                            let name = fields[idx].name.to_string().intern();
-                            let field_ty = fields[idx].ty(ctx.tcx, adt_args);
+                            let fidx = FieldIdx::from(idx);
+                            let name = fields[fidx].name.to_string().intern();
+                            let field_ty = fields[fidx].ty(ctx.tcx, adt_args);
                             let typ = if !ctx.is_zst(field_ty) {
                                 last_type.clone()
                             } else {
