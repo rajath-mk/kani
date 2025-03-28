@@ -425,30 +425,30 @@ enum RelativeResolution {
     Globs(Vec<Res>),
 }
 
-/// Resolves a path relative to a local module.
 fn resolve_relative(tcx: TyCtxt, current_module: LocalModDefId, name: &str) -> RelativeResolution {
     debug!(?name, ?current_module, "resolve_relative");
 
     let mut glob_imports = vec![];
     let result = tcx.hir_module_free_items(current_module).find_map(|item_id| {
         let item = tcx.hir_item(item_id);
-        if item.kind.ident().map_or(false, |ident| ident.as_str() == name) {
-            match item.kind {
-                ItemKind::Use(use_path, UseKind::Single(_)) => use_path.res[0].opt_def_id(),
-                ItemKind::ExternCrate(orig_name, _) => resolve_external(
-                    tcx,
-                    orig_name.as_ref().map(|sym| sym.as_str()).unwrap_or(name),
-                ),
-                _ => Some(item.owner_id.def_id.to_def_id()),
+        if let Some(ident) = item.kind.ident() {
+            if ident.as_str() == name {
+                return match item.kind {
+                    ItemKind::Use(use_path, UseKind::Single(_)) => use_path.res[0].opt_def_id(),
+                    ItemKind::ExternCrate(orig_name, _) => resolve_external(
+                        tcx,
+                        orig_name.as_ref().map(|sym| sym.as_str()).unwrap_or(name),
+                    ),
+                    _ => Some(item.owner_id.def_id.to_def_id()),
+                };
             }
-        } else {
-            if let ItemKind::Use(use_path, UseKind::Glob) = item.kind {
-                // Do not immediately try to resolve the path using this glob,
-                // since paths resolved via non-globs take precedence.
-                glob_imports.push(use_path.res[0]);
-            }
-            None
         }
+        if let ItemKind::Use(use_path, UseKind::Glob) = item.kind {
+            // Do not immediately try to resolve the path using this glob,
+            // since paths resolved via non-globs take precedence.
+            glob_imports.push(use_path.res[0]);
+        }
+        None
     });
     result.map_or(RelativeResolution::Globs(glob_imports), RelativeResolution::Found)
 }
