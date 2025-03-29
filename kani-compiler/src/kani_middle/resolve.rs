@@ -433,18 +433,16 @@ fn resolve_relative(tcx: TyCtxt, current_module: LocalModDefId, name: &str) -> R
     let result = tcx.hir_module_free_items(current_module).find_map(|item_id| {
         let item = tcx.hir_item(item_id);
         if item.kind.ident().map_or(false, |i| i.as_str() == name) {
-            match item.kind {
-                ItemKind::Use(use_path, UseKind::Single(i)) => use_path.res[0].opt_def_id(),
-                ItemKind::ExternCrate(orig_name, i) => resolve_external(
+            match &item.kind {
+                ItemKind::Use(use_path, UseKind::Single(_)) => use_path.res[0].opt_def_id(),
+                ItemKind::ExternCrate(orig_name, ident) => resolve_external(
                     tcx,
-                    orig_name.as_ref().map(|sym| sym.as_str()).unwrap_or(name),
+                    orig_name.as_ref().map(|sym| sym.as_str()).unwrap_or_else(|| ident.as_str()),
                 ),
                 _ => Some(item.owner_id.def_id.to_def_id()),
             }
         } else {
-            if let ItemKind::Use(use_path, UseKind::Glob) = item.kind {
-                // Do not immediately try to resolve the path using this glob,
-                // since paths resolved via non-globs take precedence.
+            if let ItemKind::Use(use_path, UseKind::Glob) = &item.kind {
                 glob_imports.push(use_path.res[0]);
             }
             None
