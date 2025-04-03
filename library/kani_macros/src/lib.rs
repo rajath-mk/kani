@@ -209,10 +209,10 @@ pub fn derive_arbitrary(item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
- #[proc_macro_derive(BoundedArbitrary, attributes(bounded))]
- pub fn derive_bounded_arbitrary(item: TokenStream) -> TokenStream {
-     bounded_derive::expand_derive_bounded_arbitrary(item)
- }
+#[proc_macro_derive(BoundedArbitrary, attributes(bounded))]
+pub fn derive_bounded_arbitrary(item: TokenStream) -> TokenStream {
+    bounded_derive::expand_derive_bounded_arbitrary(item)
+}
 
 /// Allow users to auto generate `Invariant` implementations by using
 /// `#[derive(Invariant)]` macro.
