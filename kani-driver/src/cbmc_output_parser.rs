@@ -332,6 +332,7 @@ impl std::fmt::Display for TraceData {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum CheckStatus {
+    Error,
     Failure,
     Covered,   // for `code_coverage` properties only
     Satisfied, // for `cover` properties only
@@ -346,6 +347,7 @@ pub enum CheckStatus {
 impl std::fmt::Display for CheckStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let check_str = match self {
+            CheckStatus::Error => style("ERROR").red(),
             CheckStatus::Satisfied => style("SATISFIED").green(),
             CheckStatus::Success => style("SUCCESS").green(),
             CheckStatus::Covered => style("COVERED").green(),
